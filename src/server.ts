@@ -15,6 +15,7 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerKeyRoutes } from "./routes/keys.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
 import { registerCdpRoute } from "./routes/cdp.js";
+import { registerViewerRoute } from "./routes/viewer.js";
 
 export interface RouteInventoryEntry {
   method: string;
@@ -113,6 +114,7 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
   await registerKeyRoutes(app);
   await registerSessionRoutes(app);
   await registerCdpRoute(app);
+  await registerViewerRoute(app);
 
   return app;
 }
