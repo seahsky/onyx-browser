@@ -1,4 +1,5 @@
 import "fastify";
+import type { BrowserSessionManager } from "../browser/manager.js";
 import type { Config } from "../config.js";
 import type { Db } from "../db/index.js";
 import type { Principal } from "../auth/types.js";
@@ -11,6 +12,7 @@ declare module "fastify" {
     db: Db;
     publicUrl: (path: string) => string;
     routeInventory: RouteInventoryEntry[];
+    browserSessions: BrowserSessionManager;
     requireAuth: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     requireUserSession: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     requireAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;

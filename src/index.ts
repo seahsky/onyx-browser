@@ -2,6 +2,7 @@ import { loadConfig, ConfigError } from "./config.js";
 import { createLogger } from "./logger.js";
 import { createDb, runMigrations } from "./db/index.js";
 import { runBootstrap } from "./auth/bootstrap.js";
+import { reconcileStaleSessionsOnBoot } from "./browser/manager.js";
 import { buildApp } from "./server.js";
 
 async function main(): Promise<void> {
@@ -25,6 +26,7 @@ async function main(): Promise<void> {
 
   const db = createDb(config.databaseUrl);
   runMigrations(db);
+  reconcileStaleSessionsOnBoot(db);
   await runBootstrap(db, config, logger);
 
   const app = await buildApp({ config, logger, db });

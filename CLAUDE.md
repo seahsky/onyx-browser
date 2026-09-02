@@ -71,6 +71,9 @@ src/
   db/
     schema.ts       Drizzle table definitions
     index.ts        connection + migration runner
+  auth/             password hashing, sessions, API keys, principal resolution, bootstrap, audit log
+  browser/          BrowserSessionManager — one Chrome process per session, timeouts, concurrency cap
+  plugins/          fastify-plugin modules (cookie + principal onRequest hook + auth guards)
   routes/           one file per route group, each with full Zod schemas
 test/
   helpers/app.ts    buildTestApp() — wires a full app against a throwaway db

@@ -42,3 +42,14 @@ export function requireUserPrincipal(request: FastifyRequest): Extract<Principal
   }
   return request.principal;
 }
+
+/**
+ * Asserts request.principal is non-null, for routes guarded by requireAuth
+ * or requireScope. Same bug-signal contract as requireUserPrincipal.
+ */
+export function requirePrincipal(request: FastifyRequest): Principal {
+  if (!request.principal) {
+    throw new Error("expected a principal — route must be guarded by requireAuth or requireScope");
+  }
+  return request.principal;
+}

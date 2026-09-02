@@ -13,3 +13,10 @@ export function createPublicUrl(config: Pick<Config, "publicOrigin">): (path: st
     return `${config.publicOrigin}${path}`;
   };
 }
+
+/** Derives a ws(s):// URL from an http(s):// one built by publicUrl(). */
+export function toWebSocketUrl(httpUrl: string): string {
+  if (httpUrl.startsWith("https://")) return `wss://${httpUrl.slice("https://".length)}`;
+  if (httpUrl.startsWith("http://")) return `ws://${httpUrl.slice("http://".length)}`;
+  throw new Error(`toWebSocketUrl expects an http(s) URL, got "${httpUrl}"`);
+}

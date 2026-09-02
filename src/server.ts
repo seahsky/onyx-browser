@@ -4,6 +4,7 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
+import { BrowserSessionManager } from "./browser/manager.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db/index.js";
 import { createPublicUrl } from "./url.js";
@@ -11,6 +12,7 @@ import authPlugin from "./plugins/auth.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerKeyRoutes } from "./routes/keys.js";
+import { registerSessionRoutes } from "./routes/sessions.js";
 
 export interface RouteInventoryEntry {
   method: string;
@@ -40,6 +42,15 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
   app.decorate("config", config);
   app.decorate("db", db);
   app.decorate("publicUrl", createPublicUrl(config));
+
+  const browserSessionManager = new BrowserSessionManager(db, config, logger);
+  app.decorate("browserSessions", browserSessionManager);
+  // Covers both graceful shutdown (index.ts calls app.close() on SIGTERM/
+  // SIGINT) and every test's app.close() in its cleanup — no orphaned
+  // Chrome processes need a separate teardown path.
+  app.addHook("onClose", async () => {
+    await browserSessionManager.closeAll();
+  });
 
   // Registered before any plugin so it captures every route, including ones
   // added by third-party plugins (swagger-ui's static/json routes, Fastify's
@@ -76,6 +87,7 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
   await registerHealthRoute(app);
   await registerAuthRoutes(app);
   await registerKeyRoutes(app);
+  await registerSessionRoutes(app);
 
   return app;
 }
