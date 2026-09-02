@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=https://schema.zeabur.app/template.json
+#
+# Deploys Onyx straight from this repository's Dockerfile. The `source` block
+# below (template: GIT / gitRepoType / repoID) is written from Zeabur's
+# template documentation but wasn't verified against a directly-quoted schema
+# example — this session had no way to run `zeabur template deploy` against
+# it. Confirm that block against https://zeabur.com/docs/en-US/template/
+# before publishing; the rest (env vars, domain binding, generators) mirrors
+# concrete examples from Zeabur's own template guide.
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: Onyx
+spec:
+  description: |
+    Self-hostable browser-as-a-service. REST API for session lifecycle, CDP
+    over WebSocket for Playwright/Puppeteer/Selenium, and a web UI for
+    creating and watching sessions — with authentication built in from the
+    start, unlike Steel Browser's self-hosted image.
+  tags:
+    - Automation
+    - Developer Tools
+  services:
+    - name: onyx
+      domainKey: PUBLIC_DOMAIN
+      template: GIT
+      spec:
+        source:
+          type: GIT
+          gitRepoType: GITHUB
+          repoID: 1354463602
+        ports:
+          - id: web
+            port: 3000
+            type: HTTP
+        volumes:
+          - id: data
+            dir: /data
+        env:
+          PORT:
+            default: "3000"
+          # Rebuilt from the live domain on every read, not the one-time
+          # PUBLIC_DOMAIN prompt below — otherwise this goes stale the
+          # moment someone binds a custom domain after first deploy.
+          ONYX_PUBLIC_URL:
+            default: https://${ZEABUR_WEB_DOMAIN}
+          ONYX_SESSION_SECRET:
+            default: ${PASSWORD}
+          ONYX_ADMIN_EMAIL:
+            default: ""
+          ONYX_ADMIN_PASSWORD:
+            default: ${PASSWORD}
+          ONYX_MAX_CONCURRENT_SESSIONS:
+            default: "5"
+          ONYX_ALLOW_PRIVATE_NETWORK:
+            default: "false"
+        instructions:
+          - title: Admin email
+            content: >-
+              Set ONYX_ADMIN_EMAIL to your own address before the first
+              deploy to bootstrap that account directly. Left blank, Onyx
+              prints a one-time setup token to this service's logs on first
+              boot instead — open them and POST it to /setup.
+          - title: Admin password
+            content: >-
+              Generated automatically. Find it under this service's
+              environment variables after deploying, or set
+              ONYX_ADMIN_PASSWORD yourself before the first deploy.
+  variables:
+    - key: PUBLIC_DOMAIN
+      type: DOMAIN
+      name: Domain
+      description: The domain Onyx will be reachable at.
+  readme: |
+    # Onyx
+
+    Self-hostable browser-as-a-service, deployed straight from source.
+
+    Chromium needs roughly 4 GB RAM and 10 GB disk to run reliably —
+    undersizing this doesn't fail loudly, the service looks healthy until
+    the first session request. Size this service's plan accordingly.
+
+    `ONYX_SESSION_SECRET` and `ONYX_ADMIN_PASSWORD` are generated for you.
+    Set `ONYX_ADMIN_EMAIL` before the first deploy to bootstrap that admin
+    account directly; otherwise check the service logs after first boot for
+    a one-time setup token to complete setup at `/setup`.
