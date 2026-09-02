@@ -15,6 +15,10 @@ const authPlugin: FastifyPluginAsync = async (app) => {
     request.principal = await resolvePrincipal(request, app.db);
   });
 
+  // These are meant to be wired up as a route's `onRequest`, never its
+  // `preHandler` — Fastify runs schema validation between those two hooks,
+  // so a preHandler guard would let an unauthenticated request with a bad
+  // body reach validation first and leak a 400 instead of a 401.
   app.decorate("requireAuth", async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.principal) {
       await reply.code(401).send({ error: "unauthorized", message: "Authentication required." });

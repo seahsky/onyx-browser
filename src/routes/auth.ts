@@ -82,7 +82,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   typed.post(
     "/v1/auth/logout",
     {
-      preHandler: app.requireUserSession,
+      onRequest: app.requireUserSession,
       schema: { response: { 204: z.null() } },
     },
     async (request, reply) => {
@@ -102,7 +102,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   typed.get(
     "/v1/auth/me",
     {
-      preHandler: app.requireAuth,
+      onRequest: app.requireAuth,
       schema: { response: { 200: meResponseSchema, 401: errorSchema } },
     },
     async (request, reply) => {

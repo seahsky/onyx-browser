@@ -45,7 +45,7 @@ export async function registerKeyRoutes(app: FastifyInstance): Promise<void> {
   typed.get(
     "/v1/keys",
     {
-      preHandler: app.requireUserSession,
+      onRequest: app.requireUserSession,
       schema: { response: { 200: z.array(keyMetadataSchema) } },
     },
     async (request, reply) => {
@@ -58,7 +58,7 @@ export async function registerKeyRoutes(app: FastifyInstance): Promise<void> {
   typed.post(
     "/v1/keys",
     {
-      preHandler: app.requireUserSession,
+      onRequest: app.requireUserSession,
       schema: {
         body: z.object({
           label: z.string().min(1).max(200),
@@ -102,7 +102,7 @@ export async function registerKeyRoutes(app: FastifyInstance): Promise<void> {
   typed.delete(
     "/v1/keys/:keyId",
     {
-      preHandler: app.requireUserSession,
+      onRequest: app.requireUserSession,
       schema: {
         params: z.object({ keyId: z.string() }),
         response: { 204: z.null(), 404: errorSchema },

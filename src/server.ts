@@ -12,6 +12,11 @@ import { registerHealthRoute } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerKeyRoutes } from "./routes/keys.js";
 
+export interface RouteInventoryEntry {
+  method: string;
+  url: string;
+}
+
 export interface BuildAppOptions {
   config: Config;
   // Typed against Fastify's own logger interface, not pino's concrete Logger
@@ -35,6 +40,18 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
   app.decorate("config", config);
   app.decorate("db", db);
   app.decorate("publicUrl", createPublicUrl(config));
+
+  // Registered before any plugin so it captures every route, including ones
+  // added by third-party plugins (swagger-ui's static/json routes, Fastify's
+  // auto-added HEAD for GET). Backs the M2 401 test's route enumeration.
+  const routeInventory: RouteInventoryEntry[] = [];
+  app.addHook("onRoute", (routeOptions) => {
+    const methods = Array.isArray(routeOptions.method) ? routeOptions.method : [routeOptions.method];
+    for (const method of methods) {
+      routeInventory.push({ method, url: routeOptions.url });
+    }
+  });
+  app.decorate("routeInventory", routeInventory);
 
   await app.register(sensible);
   await app.register(rateLimit, { global: false });
