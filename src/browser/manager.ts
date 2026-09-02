@@ -7,6 +7,7 @@ import type { Principal } from "../auth/types.js";
 import type { Config } from "../config.js";
 import type { Db } from "../db/index.js";
 import { browserSessions } from "../db/schema.js";
+import { attachEgressGuard, type EgressGuardHandle } from "./egress-guard.js";
 import { getFreePort } from "./port.js";
 
 export class ConcurrencyLimitError extends Error {
@@ -30,6 +31,7 @@ interface ActiveSession {
   idleTimeoutMs: number;
   idleTimer: NodeJS.Timeout;
   absoluteTimer: NodeJS.Timeout;
+  egressGuard: EgressGuardHandle;
 }
 
 // Any row still marked non-terminal at boot belonged to a process that no
@@ -79,6 +81,17 @@ export class BrowserSessionManager {
     const cdpPort = await getFreePort();
     const server = await this.launchChromium(cdpPort);
 
+    // Egress protection is not optional: a session with no guard attached
+    // is a session that can reach the private network, so a failure here
+    // must fail session creation too, not launch unprotected.
+    let egressGuard: EgressGuardHandle;
+    try {
+      egressGuard = await attachEgressGuard(cdpPort, id, this.db, this.config.allowPrivateNetwork, this.logger);
+    } catch (err) {
+      await server.close().catch(() => {});
+      throw err;
+    }
+
     const now = Date.now();
     const idleTimeoutMs = this.config.sessionIdleTimeoutMs;
     const maxLifetimeMs = this.config.sessionMaxLifetimeMs;
@@ -104,7 +117,7 @@ export class BrowserSessionManager {
       void this.autoRelease(id, "timeout_idle");
     }, idleTimeoutMs).unref();
 
-    const session: ActiveSession = { id, server, cdpPort, idleTimeoutMs, idleTimer, absoluteTimer };
+    const session: ActiveSession = { id, server, cdpPort, idleTimeoutMs, idleTimer, absoluteTimer, egressGuard };
     this.active.set(id, session);
 
     server.on("close", () => {
@@ -171,6 +184,7 @@ export class BrowserSessionManager {
     this.active.delete(sessionId);
     clearTimeout(session.idleTimer);
     clearTimeout(session.absoluteTimer);
+    session.egressGuard.close();
 
     if (reason !== "crashed") {
       try {
@@ -206,6 +220,7 @@ export class BrowserSessionManager {
         this.active.delete(id);
         clearTimeout(session.idleTimer);
         clearTimeout(session.absoluteTimer);
+        session.egressGuard.close();
         try {
           await session.server.close();
         } catch (err) {

@@ -36,6 +36,13 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
   const app = Fastify({
     loggerInstance: logger,
     trustProxy: false,
+    // Fastify's default (forceCloseConnections: 'idle') only calls
+    // server.closeIdleConnections() when a custom serverFactory is set —
+    // with the plain default HTTP server it's a no-op, so close() would
+    // wait indefinitely for any connection that doesn't close itself
+    // (exactly what an upgraded CDP proxy socket can do, mid-request).
+    // true unconditionally destroys every open connection on close().
+    forceCloseConnections: true,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
@@ -68,7 +75,21 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
 
   await app.register(sensible);
   await app.register(rateLimit, { global: false });
-  await app.register(websocket);
+  await app.register(websocket, {
+    // @fastify/websocket's default preClose does a graceful client.close()
+    // per connection, which waits for a clean closing handshake. That races
+    // badly with a client that already disconnected a moment earlier (e.g.
+    // the CDP proxy, once its counterpart has gone away) — shutdown can
+    // hang waiting on a handshake the other side will never complete.
+    // terminate() drops the socket immediately; shutdown must never hang on
+    // connection state it doesn't control.
+    preClose(done) {
+      for (const client of app.websocketServer.clients) {
+        client.terminate();
+      }
+      app.websocketServer.close(() => done());
+    },
+  });
   await app.register(authPlugin);
 
   await app.register(swagger, {
