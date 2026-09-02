@@ -6,6 +6,8 @@ import type { FastifyInstance } from "fastify";
 import { loadConfig, type Config } from "../../src/config.js";
 import { createLogger } from "../../src/logger.js";
 import { createDb, runMigrations, type Db } from "../../src/db/index.js";
+import { hashPassword } from "../../src/auth/password.js";
+import { users } from "../../src/db/schema.js";
 import { buildApp } from "../../src/server.js";
 
 export interface TestApp {
@@ -15,7 +17,11 @@ export interface TestApp {
   cleanup: () => Promise<void>;
 }
 
-/** Builds a fully wired app against a throwaway SQLite file for one test. */
+/**
+ * Builds a fully wired app against a throwaway SQLite file for one test.
+ * Does not run bootstrap — most tests seed a known user via createTestUser
+ * instead; tests that specifically exercise bootstrap call it themselves.
+ */
 export async function buildTestApp(envOverrides: Record<string, string> = {}): Promise<TestApp> {
   const dbFile = path.join(os.tmpdir(), `onyx-test-${randomUUID()}.db`);
 
@@ -43,4 +49,32 @@ export async function buildTestApp(envOverrides: Record<string, string> = {}): P
   };
 
   return { app, config, db, cleanup };
+}
+
+export interface TestUserOptions {
+  email?: string;
+  password?: string;
+  role?: "admin" | "user";
+}
+
+export interface TestUser {
+  id: string;
+  email: string;
+  role: "admin" | "user";
+  password: string;
+}
+
+/** Inserts a user directly, bypassing bootstrap, for tests that need a known login. */
+export async function createTestUser(db: Db, opts: TestUserOptions = {}): Promise<TestUser> {
+  const email = opts.email ?? `user-${randomUUID()}@example.com`;
+  const password = opts.password ?? "correct horse battery staple";
+  const passwordHash = await hashPassword(password);
+
+  const [row] = db
+    .insert(users)
+    .values({ email, passwordHash, role: opts.role ?? "user" })
+    .returning({ id: users.id, email: users.email, role: users.role })
+    .all();
+
+  return { ...row!, password };
 }
