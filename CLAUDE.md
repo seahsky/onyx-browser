@@ -51,13 +51,22 @@ Commit at each boundary.
 ## Commands
 
 ```
-npm run dev         # tsx watch, runs src/index.ts directly
-npm run build        # tsc -p tsconfig.build.json -> dist/
-npm start            # node dist/index.js
-npm test             # vitest run
-npm run typecheck    # tsc --noEmit (src + test)
-npm run db:generate   # drizzle-kit generate, after editing src/db/schema.ts
+npm run dev          # tsx watch, runs src/index.ts directly (proxy the UI's own `npm run dev` in ui/ at it)
+npm run build         # builds ui/ then tsc -p tsconfig.build.json -> dist/
+npm run build:ui       # npm install + build inside ui/ only
+npm start             # node dist/index.js (serves the built UI too, if ui/dist exists)
+npm test              # pretest builds ui/ first, then vitest run
+npm run typecheck     # tsc --noEmit (src + test)
+npm run db:generate    # drizzle-kit generate, after editing src/db/schema.ts
 ```
+
+The UI (`ui/`) is a separate React + Vite project, its own `package.json` and
+`tsconfig.json` — kept apart from the backend's Node-only tsconfig so browser
+DOM types never leak into it. It builds to `ui/dist`, which the backend
+serves as static files when present (`src/server.ts`); with it absent
+(nothing under `ui/` installed or built yet), the server logs a warning and
+runs API-only. Still one deployment, one port: the built UI is just files
+Fastify serves, not a second service.
 
 ## Layout
 
@@ -66,15 +75,21 @@ src/
   config.ts        Zod-validated env config, loadConfig()
   url.ts            createPublicUrl() — the only place that builds a public URL
   logger.ts         pino instance with secret redaction
-  server.ts         buildApp() — Fastify instance, plugins, routes
+  server.ts         buildApp() — Fastify instance, plugins, routes, static UI serving
   index.ts          entry point: load config, boot db, listen, signal handling
   db/
     schema.ts       Drizzle table definitions
     index.ts        connection + migration runner
   auth/             password hashing, sessions, API keys, principal resolution, bootstrap, audit log
-  browser/          BrowserSessionManager — one Chrome process per session, timeouts, concurrency cap
+  browser/          BrowserSessionManager, CDP client, egress guard, screencast — one Chrome process per session
+  egress/           pure scheme/address denylist (rules.ts) + the DNS-rebinding-safe policy (policy.ts)
   plugins/          fastify-plugin modules (cookie + principal onRequest hook + auth guards)
   routes/           one file per route group, each with full Zod schemas
 test/
   helpers/app.ts    buildTestApp() — wires a full app against a throwaway db
+ui/
+  src/
+    api.ts          typed fetch client for /v1/**
+    App.tsx          auth gate: Login vs Dashboard
+    components/      Login, Dashboard, KeysPanel, SessionsPanel, Viewer
 ```

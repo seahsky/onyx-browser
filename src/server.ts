@@ -1,6 +1,9 @@
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyBaseLogger } from "fastify";
 import sensible from "@fastify/sensible";
 import rateLimit from "@fastify/rate-limit";
+import staticFiles from "@fastify/static";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import websocket from "@fastify/websocket";
@@ -115,6 +118,18 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
   await registerSessionRoutes(app);
   await registerCdpRoute(app);
   await registerViewerRoute(app);
+
+  // dist/server.js and the repo root are one level apart, same as the
+  // drizzle migrations folder resolution in db/index.ts. Only registered
+  // when the UI has actually been built — backend tests never need to
+  // `npm run build` the UI first, and a fresh production image always does
+  // (see the Dockerfile).
+  const uiDistPath = fileURLToPath(new URL("../ui/dist", import.meta.url));
+  if (fs.existsSync(`${uiDistPath}/index.html`)) {
+    await app.register(staticFiles, { root: uiDistPath, index: "index.html" });
+  } else {
+    logger.warn({ uiDistPath }, "ui/dist not found — run `npm run build` in ui/ to serve the web UI");
+  }
 
   return app;
 }

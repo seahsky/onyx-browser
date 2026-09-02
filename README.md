@@ -13,8 +13,10 @@ ever launched.
 
 ## Status
 
-Under active development against the milestone plan in `CLAUDE.md`. Not yet
-ready to run a browser session end to end.
+Under active development against the milestone plan in `CLAUDE.md`. Auth,
+browser lifecycle, the CDP proxy, egress control, and the web UI all work
+end to end; packaging (Docker image, Zeabur template) is the remaining
+milestone.
 
 ## Requirements
 
@@ -27,8 +29,15 @@ first session request. Size accordingly before deploying.
 ```
 npm install
 cp .env.example .env   # fill in ONYX_SESSION_SECRET at minimum
+npm run build:ui        # one-time: installs and builds ui/
 npm run dev
 ```
+
+The UI lives in `ui/` as its own Vite project. For UI development with hot
+reload, run `npm run dev` here for the API and `npm run dev` in `ui/` for
+the frontend (its dev server proxies `/v1`, `/health`, and `/setup` to
+`localhost:3000`). For a single-process check, `npm run build` builds both
+and `npm start` serves the built UI from the same port as the API.
 
 ```
 npm run build && npm test && curl -sf localhost:3000/health

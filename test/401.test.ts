@@ -16,6 +16,12 @@ const PUBLIC_ALLOWLIST: RouteRef[] = [
   { method: "HEAD", url: "/health" },
   { method: "POST", url: "/v1/auth/login" },
   { method: "POST", url: "/setup" },
+  // The built UI's static assets (index.html, JS, CSS) — has to be
+  // reachable before anyone can load the login page to authenticate at all.
+  // Only registered when ui/dist exists (see server.ts); a missing static
+  // asset 404s here rather than 401ing, which is what this allowlists.
+  { method: "GET", url: "/*" },
+  { method: "HEAD", url: "/*" },
 ];
 
 function isAllowlisted(method: string, url: string): boolean {

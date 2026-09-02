@@ -8,9 +8,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run build:ui && tsc -p tsconfig.build.json",
+    "build:ui": "npm install --prefix ui && npm run build --prefix ui",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "pretest": "npm run build:ui",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
