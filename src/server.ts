@@ -3,6 +3,7 @@ import sensible from "@fastify/sensible";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+import websocket from "@fastify/websocket";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { BrowserSessionManager } from "./browser/manager.js";
 import type { Config } from "./config.js";
@@ -13,6 +14,7 @@ import { registerHealthRoute } from "./routes/health.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerKeyRoutes } from "./routes/keys.js";
 import { registerSessionRoutes } from "./routes/sessions.js";
+import { registerCdpRoute } from "./routes/cdp.js";
 
 export interface RouteInventoryEntry {
   method: string;
@@ -66,6 +68,7 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
 
   await app.register(sensible);
   await app.register(rateLimit, { global: false });
+  await app.register(websocket);
   await app.register(authPlugin);
 
   await app.register(swagger, {
@@ -88,6 +91,7 @@ export async function buildApp({ config, logger, db }: BuildAppOptions) {
   await registerAuthRoutes(app);
   await registerKeyRoutes(app);
   await registerSessionRoutes(app);
+  await registerCdpRoute(app);
 
   return app;
 }
